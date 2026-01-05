@@ -513,8 +513,35 @@
         }
 
         // Feature: Wavefunction Monitor (Volume & Topology)
-        function calculateVolume(rawPoints) {
-            if (rawPoints.length < 4) return 0;
+        function countUniqueVertices(geometry) {
+            const positions = geometry.attributes.position.array;
+            const uniquePoints = [];
+            const eps = 0.001;
+
+            for (let i = 0; i < positions.length; i += 3) {
+                const x = positions[i];
+                const y = positions[i+1];
+                const z = positions[i+2];
+                
+                let isUnique = true;
+                for (let j = 0; j < uniquePoints.length; j++) {
+                    const dx = x - uniquePoints[j].x;
+                    const dy = y - uniquePoints[j].y;
+                    const dz = z - uniquePoints[j].z;
+                    if (Math.abs(dx) < eps && Math.abs(dy) < eps && Math.abs(dz) < eps) {
+                        isUnique = false;
+                        break;
+                    }
+                }
+                if (isUnique) {
+                    uniquePoints.push({x, y, z});
+                }
+            }
+            return uniquePoints.length;
+        }
+
+        function analyzeSlice(rawPoints) {
+            if (rawPoints.length < 4) return { volume: 0, count: 0 };
 
             // 1. Deduplicate Points
             const points = [];
@@ -530,7 +557,7 @@
                 if(unique) points.push(rawPoints[i]);
             }
 
-            if (points.length < 4) return 0;
+            if (points.length < 4) return { volume: 0, count: 0 };
             
             let geom = null;
             try {
@@ -565,11 +592,13 @@
                      }
                 }
                 
+                const uniqueCount = countUniqueVertices(geom);
+                
                 geom.dispose();
-                return Math.abs(volume);
+                return { volume: Math.abs(volume), count: uniqueCount };
             } catch(e) {
                 if(geom) geom.dispose();
-                return 0;
+                return { volume: 0, count: 0 };
             }
         }
 
@@ -590,8 +619,8 @@
             for(let i=0; i<=steps; i++) {
                 const w = W_MIN + (i/steps * range);
                 const verts = getVertices(w);
-                const vol = calculateVolume(verts);
-                topologyData.push({ w, count: verts.length, volume: vol });
+                const res = analyzeSlice(verts);
+                topologyData.push({ w, count: res.count, volume: res.volume });
             }
             drawGraph();
         }
@@ -806,21 +835,24 @@
 
             meshGroup.clear();
             const points = getVertices(wVal);
-            document.getElementById('vertex-count').textContent = points.length;
-            
-            // Re-center rotation
-            // Not strictly necessary but looks nice if shape moves
-            
             if (points.length >= 4) {
                 try {
                     const geometry = new ConvexGeometry(points);
+                    
+                    // Update count using unique vertex deduplication
+                    document.getElementById('vertex-count').textContent = countUniqueVertices(geometry);
+
                     const mesh = new THREE.Mesh(geometry, hullMaterial);
                     meshGroup.add(mesh);
                     
                     const edges = new THREE.EdgesGeometry(geometry);
                     const line = new THREE.LineSegments(edges, wireMaterial);
                     meshGroup.add(line);
-                } catch (e) { }
+                } catch (e) { 
+                    document.getElementById('vertex-count').textContent = 0;
+                }
+            } else {
+                document.getElementById('vertex-count').textContent = 0;
             }
         };
 
