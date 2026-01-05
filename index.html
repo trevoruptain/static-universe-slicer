@@ -304,10 +304,10 @@
         </div>
 
         <div style="margin-top: 30px; border-top: 1px solid var(--panel-border); padding-top: 20px;">
-            <h1>Infinite Generator</h1>
-            <label>Complexity (Faces): <span id="complexity-val" class="data-val">24</span></label>
-            <input type="range" id="complexity-slider" min="6" max="60" value="24">
-            <button id="generate-btn" class="action-btn" style="background: var(--accent-primary); color: #000;">GENERATE UNIVERSE</button>
+            <h1 style="color: var(--accent-secondary)">Universe Hunter</h1>
+            <label>Complexity (N): <span id="complexity-val" class="data-val">24</span></label>
+            <input type="range" id="complexity-slider" min="10" max="60" value="24">
+            <button id="generate-btn" class="action-btn" style="background: var(--accent-secondary); color: #fff; margin-top: 15px;">HUNT FOR UNIVERSE</button>
         </div>
     </nav>
 
@@ -381,26 +381,28 @@
             return ineqs;
         }
 
-        // Feature: Infinite Random Generator
-        function generateRandomPolytope(faces) {
+        // Feature: Quantum Crystal Generator (Symmetric Integer Logic)
+        function generateQuantumCrystal(N) {
             const ineqs = [];
-            for(let i=0; i<faces; i++) {
-                // Generate random normal vector on 4D sphere
-                let u = 0, v = 0, q = 0, r = 0;
-                let mag = 0;
-                do {
-                    u = Math.random()*2 - 1;
-                    v = Math.random()*2 - 1;
-                    q = Math.random()*2 - 1;
-                    r = Math.random()*2 - 1;
-                    mag = Math.sqrt(u*u + v*v + q*q + r*r);
-                } while(mag === 0 || mag > 1); // Rejection sampling for uniform sphere distribution
+            const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+            
+            // We generate N/2 pairs to ensure symmetry
+            const pairs = Math.max(3, Math.floor(N/2));
+            
+            for(let i=0; i<pairs; i++) {
+                let a = randInt(-2, 2);
+                let b = randInt(-2, 2);
+                let c = randInt(-2, 2);
+                let d = randInt(-2, 2);
                 
-                // Normalize
-                u /= mag; v /= mag; q /= mag; r /= mag;
+                // Avoid zero vector
+                if(a===0 && b===0 && c===0 && d===0) { d = 1; }
                 
-                // Tangent plane: normal . x <= 1
-                ineqs.push([u, v, q, r, 1]);
+                // Add Pair (P and -P) to enforce Central Symmetry
+                // This creates the "Diamond" / "Crystal" aesthetic
+                // Using 2 as the constant scale
+                ineqs.push([a, b, c, d, 2]);
+                ineqs.push([-a, -b, -c, -d, 2]);
             }
             return ineqs;
         }
@@ -451,11 +453,13 @@
             return new THREE.Vector3(x, y, z);
         }
 
-        function getVertices(wVal) {
+        window.getVertices = function(wVal, overrideIneqs) {
             const vertices = [];
             const planes3D = [];
             const constants3D = [];
-            window.currentInequalities.forEach(ineq => {
+            const ineqs = overrideIneqs || window.currentInequalities;
+            
+            ineqs.forEach(ineq => {
                 const [a, b, c, d, e] = ineq;
                 planes3D.push([a, b, c]);
                 constants3D.push(e - (d * wVal));
@@ -682,17 +686,105 @@
             document.getElementById('complexity-val').textContent = e.target.value;
         });
 
-        document.getElementById('generate-btn').addEventListener('click', () => {
-            const faces = parseInt(document.getElementById('complexity-slider').value);
-            const data = generateRandomPolytope(faces);
+        // Feature: Universe Hunter (Asymmetric Drift)
+        function generateDriftingPolytope(N) {
+            const ineqs = [];
+            const randFloat = (min, max) => Math.random() * (max - min) + min;
             
-            document.getElementById('json-input').value = JSON.stringify(data, null, 2);
-            window.currentInequalities = data;
+            for(let i=0; i<N; i++) {
+                // Random Vector
+                let u = randFloat(-1, 1);
+                let v = randFloat(-1, 1);
+                let q = randFloat(-1, 1);
+                let r = randFloat(-1, 1);
+                
+                // Normalize
+                const mag = Math.sqrt(u*u + v*v + q*q + r*r);
+                if(mag === 0) continue;
+                
+                // DRIFT: Random offset d in [0.5, 1.5]
+                // This moves planes away from origin, creating asymmetry
+                const d = randFloat(0.5, 1.5);
+                
+                ineqs.push([u/mag, v/mag, q/mag, r/mag, d]);
+            }
+            return ineqs;
+        }
+
+        // Topology Scorer: Returns number of peaks
+        function scoreTopology(ineqs) {
+            // Fast scan
+            const steps = 20; 
+            const counts = [];
+            for(let i=0; i<=steps; i++) {
+                const w = W_MIN + (i/steps * (W_MAX - W_MIN));
+                // Inline getVertices logic safely for speed
+                // ...actually just use valid region check or reuse getVertices
+                // Reusing getVertices is fine for 20 steps
+                counts.push(window.getVertices(w, ineqs).length);
+            }
             
+            // Count Peaks
+            let peaks = 0;
+            for(let i=1; i<counts.length-1; i++) {
+                if(counts[i] > counts[i-1] && counts[i] > counts[i+1]) {
+                    peaks++;
+                }
+            }
+            return peaks;
+        }
+
+        // The Hunt Loop
+        async function huntForUniverse() {
+            const btn = document.getElementById('generate-btn');
+            const originalText = btn.textContent;
+            btn.textContent = "SCANNING MULTIVERSE...";
+            btn.disabled = true;
+
+            const N = parseInt(document.getElementById('complexity-slider').value);
+            let bestData = null;
+            let maxPeaks = -1;
+            
+            // Allow UI to update
+            await new Promise(r => setTimeout(r, 10));
+
+            const ATTEMPTS = 50;
+            for(let i=0; i<ATTEMPTS; i++) {
+                const candidate = generateDriftingPolytope(N);
+                
+                // We need to pass candidate to getVertices temporarily
+                // Let's modify getVertices signature or swap global temporarily
+                const originalIneqs = window.currentInequalities;
+                window.currentInequalities = candidate;
+                const peaks = scoreTopology(); // Uses global currentInequalities
+                window.currentInequalities = originalIneqs; // Restore
+
+                if(peaks > maxPeaks) {
+                    maxPeaks = peaks;
+                    bestData = candidate;
+                }
+                
+                // Early exit if fascinating
+                if(peaks >= 3) break;
+            }
+
+            // Load Winner
+            window.currentInequalities = bestData;
+            document.getElementById('json-input').value = JSON.stringify(bestData, null, 2);
             document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
             
             scanTopology();
             updateMesh();
+            
+            btn.textContent = `FOUND`;
+            setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 2000);
+        }
+
+
+
+        // ... existing interaction code ...
+        document.getElementById('generate-btn').addEventListener('click', () => {
+             huntForUniverse();
         });
 
         const slider = document.getElementById('slice-slider');
@@ -716,17 +808,8 @@
         
         // BOOT
         animate();
-        // GENERATE RANDOM UNIVERSE ON START
-        const randomFaces = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
-        document.getElementById('complexity-slider').value = randomFaces;
-        document.getElementById('complexity-val').textContent = randomFaces;
-        
-        const initData = generateRandomPolytope(randomFaces);
-        window.currentInequalities = initData;
-        document.getElementById('json-input').value = JSON.stringify(initData, null, 2);
-        
-        scanTopology();
-        updateMesh();
+        // HUNT ON LOGIN
+        huntForUniverse();
 
     </script>
 </body>
