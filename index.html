@@ -297,6 +297,7 @@
         <button class="preset-btn" onclick="loadPreset('Hypercube')">Hypercube (Tesseract)</button>
         <button class="preset-btn" onclick="loadPreset('Simplex')">5-Cell (Simplex)</button>
         <button class="preset-btn" onclick="loadPreset('Duocylinder')">Duocylinder (Approx)</button>
+        <button class="preset-btn" onclick="loadPreset('Resonance Experiment')">Resonance (Needle Universe)</button>
         
         <div class="social-links">
             <a href="https://github.com/trevoruptain/static-universe-slicer" target="_blank">GitHub</a>
@@ -421,7 +422,14 @@
                 [0, 0, 1, 1, 1.414], [0, 0, 1, -1, 1.414], [0, 0, -1, 1, 1.414], [0, 0, -1, -1, 1.414]
             ],
             "16-Cell": generate16Cell(),
-            "Duocylinder": generateDuocylinder()
+            "Duocylinder": generateDuocylinder(),
+            "Resonance Experiment": [
+                [10, 0, 0, 0, 1], [-10, 0, 0, 0, 1],   
+                [0, 1, 0, 0, 1], [0, -1, 0, 0, 1],     
+                [0, 0, 1, 0, 1], [0, 0, -1, 0, 1],     
+                [0, 0, 0, 1, 4], [0, 0, 0, -1, 4],     
+                [1, 1, 1, 4, 2], [-1, -1, -1, -4, 2]   
+            ]
         };
 
         // --- Core Application Logic ---
@@ -494,13 +502,8 @@
         }
 
         // Feature: Wavefunction Monitor (Volume & Topology)
-        let loggedOnce = false;
-
         function calculateVolume(rawPoints) {
-            // Filter out empty calls so we don't debug empty space
             if (rawPoints.length < 4) return 0;
-
-            if(!loggedOnce) console.log("Debug: Valid Inputs Received", rawPoints.length);
 
             // 1. Deduplicate Points
             const points = [];
@@ -516,16 +519,11 @@
                 if(unique) points.push(rawPoints[i]);
             }
 
-            if (points.length < 4) {
-                 if(!loggedOnce) console.log("Debug: Too few unique points", points.length);
-                 return 0;
-            }
+            if (points.length < 4) return 0;
             
             let geom = null;
             try {
-                if(!loggedOnce) console.log("Debug: Attempting ConvexHull...");
                 geom = new ConvexGeometry(points);
-                
                 const positions = geom.attributes.position.array;
                 let volume = 0;
                 
@@ -535,52 +533,30 @@
                 const cross = new THREE.Vector3();
 
                 if (geom.index) {
-                     // INDEXED GEOMETRY
                      const indices = geom.index.array;
-                     if(!loggedOnce) console.log("Debug: Hull Built (Indexed). Faces:", indices.length/3);
-
                      for(let i=0; i<indices.length; i+=3) {
                         const i1 = indices[i];
                         const i2 = indices[i+1];
                         const i3 = indices[i+2];
-                        
                         p1.set(positions[i1*3], positions[i1*3+1], positions[i1*3+2]);
                         p2.set(positions[i2*3], positions[i2*3+1], positions[i2*3+2]);
                         p3.set(positions[i3*3], positions[i3*3+1], positions[i3*3+2]);
-                        
                         cross.crossVectors(p2, p3);
                         volume += p1.dot(cross) / 6.0;
                      }
                 } else {
-                     // NON-INDEXED GEOMETRY (Triangle Soup)
-                     // Vertices are just sequential in the position buffer
-                     const vCount = positions.length / 3;
-                     if(!loggedOnce) console.log("Debug: Hull Built (Non-Indexed). Triangles:", vCount/3);
-                     
                      for(let i=0; i<positions.length; i+=9) {
-                        // Vertex 1
                         p1.set(positions[i], positions[i+1], positions[i+2]);
-                        // Vertex 2
                         p2.set(positions[i+3], positions[i+4], positions[i+5]);
-                        // Vertex 3
                         p3.set(positions[i+6], positions[i+7], positions[i+8]);
-
                         cross.crossVectors(p2, p3);
                         volume += p1.dot(cross) / 6.0;
                      }
                 }
                 
-                // FINAL SUCCESS LOG
-                if(!loggedOnce) {
-                    console.log("--- Volume Success ---");
-                    console.log("Calculated Volume:", Math.abs(volume));
-                    loggedOnce = true;
-                }
-
                 geom.dispose();
                 return Math.abs(volume);
             } catch(e) {
-                console.warn("Volume Calc Failed:", e);
                 if(geom) geom.dispose();
                 return 0;
             }
@@ -591,8 +567,6 @@
         const W_MIN = -3.0, W_MAX = 3.0;
         
         function scanTopology() {
-            console.log("--- START TOPO SCAN ---");
-            loggedOnce = false; // Reset debug
             topologyData = [];
             const steps = 80; 
             const range = W_MAX - W_MIN;
@@ -600,12 +574,9 @@
             for(let i=0; i<=steps; i++) {
                 const w = W_MIN + (i/steps * range);
                 const verts = getVertices(w);
-                if(i===40) console.log(`Mid-Scan (w=${w.toFixed(2)}): ${verts.length} verts`);
-                
                 const vol = calculateVolume(verts);
                 topologyData.push({ w, count: verts.length, volume: vol });
             }
-            console.log("--- END TOPO SCAN ---");
             drawGraph();
         }
 
