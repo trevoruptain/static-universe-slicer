@@ -302,6 +302,13 @@
             <a href="https://github.com/trevoruptain/static-universe-slicer" target="_blank">GitHub</a>
             <a href="https://linkedin.com/in/trevoruptain" target="_blank">LinkedIn</a>
         </div>
+
+        <div style="margin-top: 30px; border-top: 1px solid var(--panel-border); padding-top: 20px;">
+            <h1>Infinite Generator</h1>
+            <label>Complexity (Faces): <span id="complexity-val" class="data-val">24</span></label>
+            <input type="range" id="complexity-slider" min="6" max="60" value="24">
+            <button id="generate-btn" class="action-btn" style="background: var(--accent-primary); color: #000;">GENERATE UNIVERSE</button>
+        </div>
     </nav>
 
     <!-- UI: Right Panel -->
@@ -363,14 +370,38 @@
             const ineqs = [];
             const r2 = Math.sqrt(2);
             // Circle A in XY (Octagon)
-            ineqs.push([1,0,0,0,1], [-1,0,0,0,1]); // |x| <= 1
-            ineqs.push([0,1,0,0,1], [0,-1,0,0,1]); // |y| <= 1
-            ineqs.push([1,1,0,0,r2], [1,-1,0,0,r2], [-1,1,0,0,r2], [-1,-1,0,0,r2]); // |x|+|y| <= sqrt(2) implicitly... wait, |x+y| and |x-y|
+            ineqs.push([1,0,0,0,1], [-1,0,0,0,1]);
+            ineqs.push([0,1,0,0,1], [0,-1,0,0,1]);
+            ineqs.push([1,1,0,0,r2], [1,-1,0,0,r2], [-1,1,0,0,r2], [-1,-1,0,0,r2]);
             
             // Circle B in ZW (Octagon)
-            ineqs.push([0,0,1,0,1], [0,0,-1,0,1]); // |z| <= 1
-            ineqs.push([0,0,0,1,1], [0,0,0,-1,1]); // |w| <= 1
+            ineqs.push([0,0,1,0,1], [0,0,-1,0,1]);
+            ineqs.push([0,0,0,1,1], [0,0,0,-1,1]);
             ineqs.push([0,0,1,1,r2], [0,0,1,-1,r2], [0,0,-1,1,r2], [0,0,-1,-1,r2]);
+            return ineqs;
+        }
+
+        // Feature: Infinite Random Generator
+        function generateRandomPolytope(faces) {
+            const ineqs = [];
+            for(let i=0; i<faces; i++) {
+                // Generate random normal vector on 4D sphere
+                let u = 0, v = 0, q = 0, r = 0;
+                let mag = 0;
+                do {
+                    u = Math.random()*2 - 1;
+                    v = Math.random()*2 - 1;
+                    q = Math.random()*2 - 1;
+                    r = Math.random()*2 - 1;
+                    mag = Math.sqrt(u*u + v*v + q*q + r*r);
+                } while(mag === 0 || mag > 1); // Rejection sampling for uniform sphere distribution
+                
+                // Normalize
+                u /= mag; v /= mag; q /= mag; r /= mag;
+                
+                // Tangent plane: normal . x <= 1
+                ineqs.push([u, v, q, r, 1]);
+            }
             return ineqs;
         }
 
@@ -487,7 +518,7 @@
             ctx.clearRect(0,0,canvas.width,canvas.height);
             if(topologyData.length === 0) return;
 
-            const padding = 10;
+            const padding = 20; // Increased for labels
             const graphW = canvas.width - padding * 2;
             const graphH = canvas.height - padding * 2;
             const maxCount = Math.max(...topologyData.map(d => d.count), 1);
@@ -511,10 +542,21 @@
             ctx.stroke();
             
             // Close path for fill
-            ctx.lineTo(getX(topologyData[topologyData.length-1].w), canvas.height);
-            ctx.lineTo(getX(topologyData[0].w), canvas.height);
+            ctx.lineTo(getX(topologyData[topologyData.length-1].w), canvas.height - padding); // Fill to bottom axis
+            ctx.lineTo(getX(topologyData[0].w), canvas.height - padding);
             ctx.fillStyle = grad;
             ctx.fill();
+
+            // Axis Labels
+            ctx.fillStyle = '#64748b'; // Slate 500
+            ctx.font = '10px Inter';
+            ctx.textAlign = 'left'; 
+            ctx.fillText(W_MIN.toFixed(1), padding, canvas.height - 6);
+            ctx.textAlign = 'right';
+            ctx.fillText(W_MAX.toFixed(1), canvas.width - padding, canvas.height - 6);
+            ctx.textAlign = 'center';
+            ctx.fillText("0.0", canvas.width / 2, canvas.height - 6);
+            ctx.fillText("Time (W)", canvas.width / 2, canvas.height - padding - 5); // Small label above 0
 
             // Cursor
             const cx = getX(wCurrent);
@@ -523,7 +565,7 @@
             ctx.lineWidth = 1;
             ctx.setLineDash([4, 4]);
             ctx.moveTo(cx, 0);
-            ctx.lineTo(cx, canvas.height);
+            ctx.lineTo(cx, canvas.height - padding);
             ctx.stroke();
         }
 
@@ -531,7 +573,7 @@
         canvas.addEventListener('mousedown', (e) => {
             const rect = canvas.getBoundingClientRect();
             const x = e.clientX - rect.left;
-            const padding = 10;
+            const padding = 20;
             const graphW = canvas.width - padding * 2;
             let w = W_MIN + ((x - padding) / graphW) * (W_MAX - W_MIN);
             w = Math.max(W_MIN, Math.min(W_MAX, w));
@@ -634,6 +676,24 @@
                  }
              } catch (e) { alert("Invalid JSON"); }
         });
+        
+        // Generator Events
+        document.getElementById('complexity-slider').addEventListener('input', (e) => {
+            document.getElementById('complexity-val').textContent = e.target.value;
+        });
+
+        document.getElementById('generate-btn').addEventListener('click', () => {
+            const faces = parseInt(document.getElementById('complexity-slider').value);
+            const data = generateRandomPolytope(faces);
+            
+            document.getElementById('json-input').value = JSON.stringify(data, null, 2);
+            window.currentInequalities = data;
+            
+            document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+            
+            scanTopology();
+            updateMesh();
+        });
 
         const slider = document.getElementById('slice-slider');
         slider.addEventListener('input', () => {
@@ -656,7 +716,17 @@
         
         // BOOT
         animate();
-        loadPreset("Complex Crystal");
+        // GENERATE RANDOM UNIVERSE ON START
+        const randomFaces = Math.floor(Math.random() * (40 - 20 + 1)) + 20;
+        document.getElementById('complexity-slider').value = randomFaces;
+        document.getElementById('complexity-val').textContent = randomFaces;
+        
+        const initData = generateRandomPolytope(randomFaces);
+        window.currentInequalities = initData;
+        document.getElementById('json-input').value = JSON.stringify(initData, null, 2);
+        
+        scanTopology();
+        updateMesh();
 
     </script>
 </body>
