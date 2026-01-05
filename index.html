@@ -344,6 +344,17 @@
         <div id="scanner-container">
             <canvas id="scanner-canvas"></canvas>
         </div>
+        
+        <div id="oeis-panel" style="margin-left: 20px; display: flex; flex-direction: column; justify-content: center; gap: 8px; border-left: 1px solid var(--panel-border); padding-left: 20px;">
+            <div style="font-size: 0.7rem; color: var(--text-muted); letter-spacing: 1px;">COMBINATORICS</div>
+            <button id="oeis-btn" class="action-btn" onclick="extractOEIS()" style="padding: 6px 12px; font-size: 0.75rem; width: 140px;">GENERATE SEQUENCE</button>
+            <div id="oeis-result" style="display: none; align-items: center; gap: 10px;">
+                <a id="oeis-link" href="#" target="_blank" style="color: var(--accent-primary); text-decoration: none; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                    <span>🔎 Search OEIS</span>
+                    <span id="oeis-text" style="color: var(--text-muted); opacity: 0.7;"></span>
+                </a>
+            </div>
+        </div>
     </footer>
 
     <script type="module">
@@ -567,6 +578,11 @@
         const W_MIN = -3.0, W_MAX = 3.0;
         
         function scanTopology() {
+            // Reset UI
+            if(document.getElementById('oeis-result')) {
+                document.getElementById('oeis-result').style.display = 'none';
+            }
+            
             topologyData = [];
             const steps = 80; 
             const range = W_MAX - W_MIN;
@@ -686,6 +702,31 @@
             ctx.fillStyle = '#8b5cf6';
             ctx.fillText(`Amp: ${pt.volume.toFixed(3)}`, tx + 5, ty + 36);
         }
+
+        // Feature: OEIS Extractor
+        window.extractOEIS = function() {
+            if(!topologyData || topologyData.length === 0) return;
+            
+            const sequence = [];
+            let lastCount = null;
+            
+            // Extract stable phases (Deduplicate sequential & Remove Zeros)
+            topologyData.forEach(d => {
+                if (d.count !== lastCount) {
+                    if (d.count > 0) sequence.push(d.count);
+                    lastCount = d.count;
+                }
+            });
+            
+            // Limit length for URL safety (usually first 10-15 are enough for unique ID)
+            const safeSeq = sequence.slice(0, 15);
+            const query = safeSeq.join(',');
+            
+            // Update UI
+            document.getElementById('oeis-result').style.display = 'flex';
+            document.getElementById('oeis-text').textContent = `[${safeSeq.join(', ')}...]`;
+            document.getElementById('oeis-link').href = `https://oeis.org/search?q=${encodeURIComponent(query)}`;
+        };
 
         // Interaction
         canvas.addEventListener('mousedown', (e) => {
