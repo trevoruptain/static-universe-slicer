@@ -627,16 +627,24 @@
             ctx.lineWidth = 2;
             ctx.stroke();
 
-            // 2. Draw Topology (Vertices) - Cyan Stroke
+            // 2. Draw Topology (Vertices) - Cyan Stroke (Step-Wise)
             ctx.beginPath();
             topologyData.forEach((d, i) => {
                 const x = getX(d.w);
                 const y = getYCounts(d.count);
-                if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+                if(i===0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    const prevY = getYCounts(topologyData[i-1].count);
+                    ctx.lineTo(x, prevY); // Horizontal to new time
+                    ctx.lineTo(x, y);     // Vertical spike to new count
+                }
             });
             ctx.strokeStyle = '#06b6d4';
-            ctx.lineWidth = 1.5;
+            ctx.lineWidth = 2; // Slightly thicker for the spikes
+            ctx.lineJoin = 'round';
             ctx.stroke();
+            ctx.lineJoin = 'miter';
 
             // Axis Labels
             ctx.fillStyle = '#64748b';
