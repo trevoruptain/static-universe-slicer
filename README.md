@@ -1,66 +1,49 @@
-# The Static Universe Slicer
+# 4D Static Universe Slicer
 
-> *"We are building the visualization layer for the post-spacetime era of physics."*
+A browser-based research tool for visualizing 4D geometric shapes by slicing them into 3D cross-sections.
 
-## 🌌 Mission Statement: Time is Not Fundamental
+[**Launch Live Visualizer**](https://static-universe-slicer.vercel.app/)
+
+## 🌌 Time is Not Fundamental
 
 Modern theoretical physics—from the **Amplituhedron** to the **Cosmological Polytope**—points to a radical conclusion: **Spacetime is not fundamental.** The universe is likely a static, high-dimensional geometric object, and what we perceive as "Time Evolution" or "Motion" is merely the result of taking a 3D slice through this static 4D structure.
 
-**The Static Universe Slicer** is built on this intuition. We are not simulating objects moving through time; we are exploring the geometry of valid particle interactions frozen in a higher dimension. By enabling researchers to intuitively slice through these shapes, we hope to uncover the hidden combinatorial patterns that govern our reality.
+This tool is built to let you explore that concept intuitively.
 
-## 🔭 The Current MVP
+## Key Features
 
-This tool is a lightweight, browser-based visualizer designed to bridge the gap between abstract algebra and geometric intuition.
+*   **Inequality Slicer**: Unlike standard mesh visualizers, this engine renders shapes defined by **Linear Inequalities** ($ax + by + cz + dw \le e$). This allows for the visualization of "Positive Geometries" often used in theoretical physics.
+*   **Singularity Scanner**: A real-time topology graph that plots the Vertex Count against the 4th dimension ($W$). This helps identify "Phase Transitions" or singularities where the geometry drastically changes.
+*   **Interactive Presets**: Includes pre-calculated inequality sets for:
+    *   **Complex Crystal** (24-Cell variant)
+    *   **Hypercube** (Tesseract)
+    *   **16-Cell** (Cross Polytope)
+    *   **Duocylinder** (Approximation)
+    *   **Simplex** (5-Cell)
+*   **Zero-Build Architecture**: Written in Vanilla JS + Three.js. No build steps, webpack, or complex dependencies required.
 
-### Key Logic: The Inequality Slicer
-Unlike standard 3D engines that rely on vertex lists, our core engine works with **Linear Inequalities (Half-Spaces)**. This is crucial because high-level physics data usually comes in the form of kinematic constraints (e.g., $s_{ij} > 0$), not pre-calculated vertices.
+## How to Use
 
-*   **Input**: JSON array of 4D plane equations ($ax + by + cz + dw \le e$).
-*   **The "Time" Slider**: Controls the $W$-axis. As you drag the slider, the engine dynamically substitutes $W$, reduces the system to 3D constraints, solves for the vertices via linear algebra, and generates the mesh.
-*   **Presets**:
-    *   **Complex Crystal**: A variant of the 24-Cell, demonstrating complex face transitions.
-    *   **Simplex**: The "hello world" of positive geometry, related to the Amplituhedron.
+1.  **Select a Preset**: Use the left sidebar to load different 4D shapes.
+2.  **Slice Time ($W$)**: Drag the main slider to move the 3D slicing plane through the 4th dimension.
+3.  **Analyze Topology**: Watch the bottom graph. The blue line represents the complexity (number of vertices) of the current slice.
+    *   **Jump**: Click anywhere on the graph to instantly view the shape at that specific $W$ coordinate.
+4.  **Custom Data**: You can paste your own JSON array of inequalities into the "Inequality Matrix" text area.
+    *   Format: `[[a, b, c, d, e], ...]`
+    *   Represents: $ax + by + cz + dw \le e$
 
-### Technical Stack
-*   **Engine**: Three.js (WebGL) for rendering.
-*   **Algorithm**: Dynamic Vertex Enumeration & Convex Hull generation.
-*   **Architecture**: Vanilla JavaScript (ES Modules). No build steps, no webpack, no bloat. Pure math and graphics.
+## Project Structure
 
----
+*   `index.html`: Contains the entire application (UI, Math Engine, Rendering).
+*   `assets`: (Optional) Static assets for social previews.
 
-## 🚀 The Future Roadmap: Why We Are Here
+## Contributing
 
-We are transforming this from a visualization toy into a research-grade tool for Quantum Gravity and Amplitudeology.
+This project is built to be extremely accessible. To modify or run it locally:
 
-### 1. Singularity Detection (The Physics of Zero Volume)
-In scattering amplitudes, "singularities" (where the volume of the shape pinches to zero) correspond to physical particles becoming real or poles in a Feynman integral.
-*   **Goal**: Automatically flag the slider values ($W$) where faces collide or volume vanishes.
+1.  Clone the repository.
+2.  Open `index.html` in any web browser.
+3.  That's it.
 
-### 2. Kinematic Flow Integration
-We plan to bypass manual JSON entry.
-*   **Goal**: Integrate graph-theory algorithms to generate inequality sets directly from **Feynman diagrams** or Planar Graphs. You draw the interaction; we generate the Positive Geometry.
-
-### 3. The OEIS Scraper
-Geometry often encodes number theory.
-*   **Goal**: Automatically count the faces ($f$-vector) of the sliced shape at every step and query the [Online Encyclopedia of Integer Sequences](https://oeis.org/) to find hidden combinatorial patterns in the data.
-
-### 4. N-Dimensional Support
-Supergravity theories often live in 10 or 11 dimensions.
-*   **Goal**: Generalize the slicer to handle $N > 4$, allowing for "double slicing" or multi-axis projection.
-
----
-
-## 🛠️ Getting Started
-
-### Installation
-There is no installation. The universe is static, and so is this code.
-1.  Clone the repo.
-2.  Open `index.html` in any browser.
-3.  Slice.
-
-### Contributing
-We welcome both **Software Engineers** who love geometry and **Physicists** who code.
-- **Engineers**: Help us optimize the Vertex Enumeration algorithm for $N>100$ planes.
-- **Physicists**: Submit new JSON presets for interesting polytopes (Associahedra, Permutahedra).
-
-Join us in decoding the geometry of the universe.
+**Math & Logic:**
+The core vertex enumeration logic is located within the `<script>` tag in `index.html`. It solves for the intersection of plane triplets to generate the convex hull of the 3D cross-section.
