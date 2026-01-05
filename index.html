@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>THE STATIC UNIVERSE | 4D Slicer & Positive Geometry</title>
+    
+    <!-- SEO & Metadata -->
+    <meta name="description" content="Interactive 4D visualization tool for theoretical physics. Explore the Amplituhedron, 16-Cell, and geometric slicing of static spacetimes using WebGL.">
+    <meta name="keywords" content="4D Visualization, Positive Geometry, Amplituhedron, Tesseract, Hypercube, Physics Slicer, Theoretical Physics, WebGL, Three.js, Static Universe">
+    <meta name="author" content="The Static Universe Project">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://static-universe-slicer.vercel.app/">
+    <meta property="og:title" content="The Static Universe | 4D Geometry Slicer">
+    <meta property="og:description" content="An interactive research tool for slicing 4D polytopes. Detect singularities and analyze the geometry of modern quantum gravity theories.">
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://static-universe-slicer.vercel.app/">
+    <meta property="twitter:title" content="The Static Universe | 4D Slicer">
+    <meta property="twitter:description" content="Visualizing post-spacetime physics. Interactive 4D slicing tool for research and education.">
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "The Static Universe Slicer",
+      "applicationCategory": "EducationalApplication",
+      "genre": "Physics Simulation",
+      "operatingSystem": "Web Browser",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "A research-grade visualization tool for slicing 4D geometric shapes to explore theories of Positive Geometry and Amplituhedrons.",
+      "author": {
+        "@type": "Person",
+        "name": "Trevor Uptain"
+      }
+    }
+    </script>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #020617;
+            --panel-bg: rgba(15, 23, 42, 0.65);
+            --panel-border: rgba(148, 163, 184, 0.15);
+            --accent-primary: #06b6d4; /* Cyan 500 */
+            --accent-secondary: #8b5cf6; /* Violet 500 */
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            font-family: var(--font-main); 
+            height: 100vh; 
+            width: 100vw;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.08) 0%, transparent 20%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 20%);
+        }
+
+        /* --- Layout: Full Screen Canvas + Floating HUD --- */
+        #canvas-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 1;
+        }
+
+        .hud-panel {
+            position: absolute;
+            background: var(--panel-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        /* --- Left Panel: Geometry Select --- */
+        #panel-left {
+            top: 24px; left: 24px;
+            width: 260px;
+            height: auto;
+        }
+
+        /* --- Right Panel: Controls & Telemetry --- */
+        #panel-right {
+            top: 24px; right: 24px;
+            width: 300px;
+        }
+
+        /* --- Bottom Panel: Scanner --- */
+        #panel-bottom {
+            bottom: 24px; left: 24px; right: 24px;
+            height: 140px;
+            flex-direction: row;
+            align-items: center;
+            gap: 24px;
+        }
+
+        /* --- Typography & Elements --- */
+        h1 {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--accent-primary);
+            margin: 0 0 12px 0;
+            font-weight: 600;
+            border-bottom: 1px solid var(--panel-border);
+            padding-bottom: 12px;
+        }
+
+        h2 {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin: 0;
+        }
+
+        button.preset-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            padding: 10px 12px;
+            text-align: left;
+            font-family: var(--font-main);
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        button.preset-btn:hover {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-main);
+            padding-left: 16px;
+        }
+
+        button.preset-btn.active {
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--accent-primary);
+            border-color: rgba(6, 182, 212, 0.3);
+            font-weight: 600;
+        }
+        
+        button.preset-btn.active::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0; width: 3px;
+            background: var(--accent-primary);
+        }
+
+        /* Form Elements */
+        label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+        
+        .data-val {
+            font-family: var(--font-mono);
+            color: var(--accent-secondary);
+        }
+
+        textarea {
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--panel-border);
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            border-radius: 6px;
+            padding: 10px;
+            resize: vertical;
+            height: 100px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        
+        textarea:focus { outline: none; border-color: var(--accent-secondary); }
+
+        button.action-btn {
+            background: var(--accent-secondary);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+        button.action-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4); }
+        button.action-btn:active { transform: translateY(0); }
+
+        /* Custom Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+            margin: 10px 0;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px; width: 16px;
+            border-radius: 50%;
+            background: var(--text-main);
+            cursor: pointer;
+            margin-top: -6px;
+            box-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; height: 4px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 2px;
+        }
+
+        /* Scanner */
+        #scanner-container { flex-grow: 1; height: 100%; position: relative; }
+        canvas#scanner-canvas { width: 100%; height: 100%; cursor: crosshair; display: block; }
+        #scanner-legend {
+            position: absolute; top: 10px; left: 10px;
+            font-size: 0.7rem; color: var(--text-muted);
+            pointer-events: none;
+        }
+
+    </style>
+    <!-- Import Maps Polyfill -->
+    <script async src="https://unpkg.com/es-module-shims@1.8.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <!-- 3D Canvas Background -->
+    <div id="canvas-layer"></div>
+
+    <!-- UI: Left Panel -->
+    <nav class="hud-panel" id="panel-left">
+        <h1>Static Universe Slicer</h1>
+        <button class="preset-btn active" onclick="loadPreset('Complex Crystal')">Complex Crystal</button>
+        <button class="preset-btn" onclick="loadPreset('16-Cell')">16-Cell (Cross Polytope)</button>
+        <button class="preset-btn" onclick="loadPreset('Hypercube')">Hypercube (Tesseract)</button>
+        <button class="preset-btn" onclick="loadPreset('Simplex')">5-Cell (Simplex)</button>
+        <button class="preset-btn" onclick="loadPreset('Duocylinder')">Duocylinder (Approx)</button>
+    </nav>
+
+    <!-- UI: Right Panel -->
+    <aside class="hud-panel" id="panel-right">
+        <h1>Slicing Controls</h1>
+        
+        <div>
+            <label>Temporal Coordinate (W) <span id="value-display" class="data-val">0.00</span></label>
+            <input type="range" id="slice-slider" min="-2.5" max="2.5" step="0.01" value="0">
+        </div>
+
+        <div style="margin-top: 10px;">
+            <label>Vertex Count <span id="vertex-count" class="data-val" style="color: var(--accent-primary)">0</span></label>
+        </div>
+
+        <div style="margin-top: 20px;">
+            <label>Inequality Matrix <small>[a,b,c,d,e]</small></label>
+            <textarea id="json-input"></textarea>
+            <div style="margin-top: 10px;">
+                <button id="update-btn" class="action-btn">COMPILE GEOMETRY</button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- UI: Bottom Panel -->
+    <footer class="hud-panel" id="panel-bottom">
+        <div style="min-width: 120px;">
+            <h1>Singularity Scanner</h1>
+            <h2>Active Topology</h2>
+        </div>
+        <div id="scanner-container">
+            <div id="scanner-legend">VERTEX COUNT vs TIME (W)</div>
+            <canvas id="scanner-canvas"></canvas>
+        </div>
+    </footer>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { ConvexGeometry } from 'three/addons/geometries/ConvexGeometry.js';
+
+        // --- Geometric Data ---
+        // Helper to generate 16-cell (all sign permutations)
+        function generate16Cell() {
+            const ineqs = [];
+            for(let i=0; i<16; i++) {
+                // simple binary counting to get signs
+                const s1 = (i&1) ? 1 : -1;
+                const s2 = (i&2) ? 1 : -1;
+                const s3 = (i&4) ? 1 : -1;
+                const s4 = (i&8) ? 1 : -1;
+                ineqs.push([s1, s2, s3, s4, 1]); // +/-x +/-y +/-z +/-w <= 1
+            }
+            return ineqs;
+        }
+
+        // Helper for Duocylinder (8-8 Prism approximation)
+        function generateDuocylinder() {
+            const ineqs = [];
+            const r2 = Math.sqrt(2);
+            // Circle A in XY (Octagon)
+            ineqs.push([1,0,0,0,1], [-1,0,0,0,1]); // |x| <= 1
+            ineqs.push([0,1,0,0,1], [0,-1,0,0,1]); // |y| <= 1
+            ineqs.push([1,1,0,0,r2], [1,-1,0,0,r2], [-1,1,0,0,r2], [-1,-1,0,0,r2]); // |x|+|y| <= sqrt(2) implicitly... wait, |x+y| and |x-y|
+            
+            // Circle B in ZW (Octagon)
+            ineqs.push([0,0,1,0,1], [0,0,-1,0,1]); // |z| <= 1
+            ineqs.push([0,0,0,1,1], [0,0,0,-1,1]); // |w| <= 1
+            ineqs.push([0,0,1,1,r2], [0,0,1,-1,r2], [0,0,-1,1,r2], [0,0,-1,-1,r2]);
+            return ineqs;
+        }
+
+        const PRESETS = {
+            "Simplex": [[-1, -1, -1, -1, 1], [1, 0, 0, 0, 1], [0, 1, 0, 0, 1], [0, 0, 1, 0, 1], [0, 0, 0, 1, 1]],
+            "Hypercube": [[1, 0, 0, 0, 1], [-1, 0, 0, 0, 1], [0, 1, 0, 0, 1], [0, -1, 0, 0, 1], [0, 0, 1, 0, 1], [0, 0, -1, 0, 1], [0, 0, 0, 1, 1], [0, 0, 0, -1, 1]],
+            "Complex Crystal": [
+                [-1, 0, 0, 0, 1], [1, 0, 0, 0, 1], [0, -1, 0, 0, 1], [0, 1, 0, 0, 1],
+                [0, 0, -1, 0, 1], [0, 0, 1, 0, 1], [0, 0, 0, -1, 1], [0, 0, 0, 1, 1],
+                [1, 1, 0, 0, 1.414], [1, -1, 0, 0, 1.414], [-1, 1, 0, 0, 1.414], [-1, -1, 0, 0, 1.414],
+                [1, 0, 1, 0, 1.414], [1, 0, -1, 0, 1.414], [-1, 0, 1, 0, 1.414], [-1, 0, -1, 0, 1.414],
+                [1, 0, 0, 1, 1.414], [1, 0, 0, -1, 1.414], [-1, 0, 0, 1, 1.414], [-1, 0, 0, -1, 1.414],
+                [0, 1, 1, 0, 1.414], [0, 1, -1, 0, 1.414], [0, -1, 1, 0, 1.414], [0, -1, -1, 0, 1.414],
+                [0, 1, 0, 1, 1.414], [0, 1, 0, -1, 1.414], [0, -1, 0, 1, 1.414], [0, -1, 0, -1, 1.414],
+                [0, 0, 1, 1, 1.414], [0, 0, 1, -1, 1.414], [0, 0, -1, 1, 1.414], [0, 0, -1, -1, 1.414]
+            ],
+            "16-Cell": generate16Cell(),
+            "Duocylinder": generateDuocylinder()
+        };
+
+        // --- Core Application Logic ---
+        
+        window.loadPreset = function(name) {
+            const data = PRESETS[name];
+            if(data) {
+                document.getElementById('json-input').value = JSON.stringify(data, null, 2);
+                window.currentInequalities = data;
+                scanTopology();
+                updateMesh();
+                
+                // UI State
+                document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                const btn = Array.from(document.querySelectorAll('.preset-btn')).find(b => b.innerText.includes(name));
+                if(btn) btn.classList.add('active');
+            }
+        };
+
+        // Math: Vertex Enumeration
+        function solve3x3(planes, constants) {
+            const [[a1, b1, c1], [a2, b2, c2], [a3, b3, c3]] = planes;
+            const [d1, d2, d3] = constants;
+            const det = a1*(b2*c3 - b3*c2) - b1*(a2*c3 - a3*c2) + c1*(a2*b3 - a3*b2);
+            if (Math.abs(det) < 1e-9) return null;
+            const x = (d1*(b2*c3 - b3*c2) - b1*(d2*c3 - d3*c2) + c1*(d2*b3 - d3*b2)) / det;
+            const y = (a1*(d2*c3 - d3*c2) - d1*(a2*c3 - a3*c2) + c1*(a2*d3 - a3*d2)) / det;
+            const z = (a1*(b2*d3 - b3*d2) - b1*(a2*d3 - a3*d2) + d1*(a2*b3 - a3*b2)) / det;
+            return new THREE.Vector3(x, y, z);
+        }
+
+        function getVertices(wVal) {
+            const vertices = [];
+            const planes3D = [];
+            const constants3D = [];
+            window.currentInequalities.forEach(ineq => {
+                const [a, b, c, d, e] = ineq;
+                planes3D.push([a, b, c]);
+                constants3D.push(e - (d * wVal));
+            });
+
+            const n = planes3D.length;
+            if (n < 4) return [];
+
+            // Brute Force Intersection O(N^3) - optimized for small N (<50)
+            for (let i = 0; i < n; i++) {
+                for (let j = i + 1; j < n; j++) {
+                    for (let k = j + 1; k < n; k++) {
+                        const pt = solve3x3(
+                            [planes3D[i], planes3D[j], planes3D[k]], 
+                            [constants3D[i], constants3D[j], constants3D[k]]
+                        );
+                        if (pt) {
+                            let valid = true;
+                            // Check against all other planes
+                            for (let m = 0; m < n; m++) {
+                                if (planes3D[m][0]*pt.x + planes3D[m][1]*pt.y + planes3D[m][2]*pt.z > constants3D[m] + 1e-4) {
+                                    valid = false;
+                                    break;
+                                }
+                            }
+                            if (valid) vertices.push(pt);
+                        }
+                    }
+                }
+            }
+            return vertices;
+        }
+
+        // Feature: Topology Scanner
+        let topologyData = [];
+        const W_MIN = -3.0, W_MAX = 3.0;
+        
+        function scanTopology() {
+            topologyData = [];
+            const steps = 120; // Resolution
+            const range = W_MAX - W_MIN;
+            for(let i=0; i<=steps; i++) {
+                const w = W_MIN + (i/steps * range);
+                const verts = getVertices(w);
+                topologyData.push({ w, count: verts.length });
+            }
+            drawGraph();
+        }
+
+        const canvas = document.getElementById('scanner-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function drawGraph() {
+            // Resize logic
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+            const wCurrent = parseFloat(document.getElementById('slice-slider').value);
+            
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            if(topologyData.length === 0) return;
+
+            const padding = 10;
+            const graphW = canvas.width - padding * 2;
+            const graphH = canvas.height - padding * 2;
+            const maxCount = Math.max(...topologyData.map(d => d.count), 1);
+            
+            const getX = (w) => padding + ((w - W_MIN) / (W_MAX - W_MIN)) * graphW;
+            const getY = (count) => canvas.height - padding - (count / maxCount) * graphH;
+
+            // Gradient Fill
+            const grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            grad.addColorStop(0, 'rgba(6, 182, 212, 0.4)');
+            grad.addColorStop(1, 'rgba(6, 182, 212, 0.0)');
+
+            ctx.beginPath();
+            topologyData.forEach((d, i) => {
+                const x = getX(d.w);
+                const y = getY(d.count);
+                if(i===0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = '#06b6d4';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Close path for fill
+            ctx.lineTo(getX(topologyData[topologyData.length-1].w), canvas.height);
+            ctx.lineTo(getX(topologyData[0].w), canvas.height);
+            ctx.fillStyle = grad;
+            ctx.fill();
+
+            // Cursor
+            const cx = getX(wCurrent);
+            ctx.beginPath();
+            ctx.strokeStyle = '#e2e8f0';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([4, 4]);
+            ctx.moveTo(cx, 0);
+            ctx.lineTo(cx, canvas.height);
+            ctx.stroke();
+        }
+
+        // Interaction
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const padding = 10;
+            const graphW = canvas.width - padding * 2;
+            let w = W_MIN + ((x - padding) / graphW) * (W_MAX - W_MIN);
+            w = Math.max(W_MIN, Math.min(W_MAX, w));
+            document.getElementById('slice-slider').value = w;
+            updateMesh();
+        });
+
+
+        // --- Three.js Rendering ---
+        const container = document.getElementById('canvas-layer');
+        const scene = new THREE.Scene();
+        // Fog for depth
+        scene.fog = new THREE.FogExp2(0x020617, 0.05);
+
+        const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+        camera.position.set(4, 3, 5);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        container.appendChild(renderer.domElement);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.autoRotate = true;
+        controls.autoRotateSpeed = 0.5;
+
+        // Lights - Brighter for better visibility
+        const ambient = new THREE.AmbientLight(0x404040, 2); // Increased intensity
+        scene.add(ambient);
+
+        const light1 = new THREE.PointLight(0x06b6d4, 3, 20); // Brighter cyan
+        light1.position.set(5, 5, 5);
+        scene.add(light1);
+
+        const light2 = new THREE.PointLight(0x8b5cf6, 3, 20); // Brighter violet
+        light2.position.set(-5, -2, -5);
+        scene.add(light2);
+
+        // Styling the Mesh - High Visibility
+        const hullMaterial = new THREE.MeshPhysicalMaterial({ 
+            color: 0x38bdf8, 
+            transmission: 0.1, // Less glass-like transmission (easier to see surface)
+            opacity: 0.9,      // More opaque
+            transparent: true, 
+            roughness: 0.1,
+            metalness: 0.0,    // Less metal (retains color better)
+            side: THREE.DoubleSide,
+            flatShading: true,
+            clearcoat: 0.5,
+            clearcoatRoughness: 0.1
+        });
+        
+        // Thicker, brighter wires
+        const wireMaterial = new THREE.LineBasicMaterial({ 
+            color: 0xffffff, 
+            linewidth: 2, 
+            opacity: 0.8,   // Much more visible
+            transparent: true 
+        });
+        
+        let meshGroup = new THREE.Group();
+        scene.add(meshGroup);
+
+        window.updateMesh = function() {
+            const wVal = parseFloat(document.getElementById('slice-slider').value);
+            document.getElementById('value-display').textContent = wVal.toFixed(2);
+            
+            drawGraph();
+
+            meshGroup.clear();
+            const points = getVertices(wVal);
+            document.getElementById('vertex-count').textContent = points.length;
+            
+            // Re-center rotation
+            // Not strictly necessary but looks nice if shape moves
+            
+            if (points.length >= 4) {
+                try {
+                    const geometry = new ConvexGeometry(points);
+                    const mesh = new THREE.Mesh(geometry, hullMaterial);
+                    meshGroup.add(mesh);
+                    
+                    const edges = new THREE.EdgesGeometry(geometry);
+                    const line = new THREE.LineSegments(edges, wireMaterial);
+                    meshGroup.add(line);
+                } catch (e) { }
+            }
+        };
+
+        // --- Init ---
+        document.getElementById('update-btn').addEventListener('click', () => {
+             try {
+                 const parsed = JSON.parse(document.getElementById('json-input').value);
+                 if (Array.isArray(parsed)) {
+                     window.currentInequalities = parsed;
+                     scanTopology();
+                     updateMesh();
+                 }
+             } catch (e) { alert("Invalid JSON"); }
+        });
+
+        const slider = document.getElementById('slice-slider');
+        slider.addEventListener('input', () => {
+             controls.autoRotate = false; // Stop rotating when user interacts
+             updateMesh();
+        });
+
+        window.addEventListener('resize', () => {
+             camera.aspect = window.innerWidth / window.innerHeight;
+             camera.updateProjectionMatrix();
+             renderer.setSize(window.innerWidth, window.innerHeight);
+             drawGraph();
+        });
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // BOOT
+        animate();
+        loadPreset("Complex Crystal");
+
+    </script>
+</body>
+</html>
